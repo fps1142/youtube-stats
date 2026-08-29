@@ -234,15 +234,17 @@
     /* コメントテーブル */
     .table-container {
       overflow-x: auto;
-      max-height: 360px;
+      max-height: 380px;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
       margin-top: 10px;
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
-    th { background: #f8fafc; color: #475569; padding: 7px 10px; font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f8fafc; color: #475569; padding: 7px 10px; font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid #e2e8f0; z-index: 10; }
     td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; }
     tr:hover { background: #f8fafc; }
+    tr.row-excluded { opacity: 0.45; background: #fafafa; }
+    .chk-include { cursor: pointer; transform: scale(1.1); }
   </style>
 </head>
 <body>
@@ -305,8 +307,8 @@
           <div id="postTitle" class="post-title"></div>
           <div class="badges">
             <div class="badge">総コメント数: <strong id="statTotal">0</strong>件</div>
-            <div class="badge">有効予想数: <strong id="statValid">0</strong>件</div>
-            <div class="badge">外れ値除外: <strong id="statOutlier">0</strong>件</div>
+            <div class="badge">集計対象: <strong id="statIncluded" style="color: #0f172a;">0</strong>件</div>
+            <div class="badge">除外・対象外: <strong id="statExcluded" style="color: #64748b;">0</strong>件</div>
           </div>
         </div>
       </div>
@@ -316,7 +318,7 @@
         <div class="kpi-card">
           <div class="kpi-label">予想平均値</div>
           <div class="kpi-value"><span id="kpiMean">0</span> <span style="font-size: 12px; font-weight: normal; color: #64748b;">円</span></div>
-          <div class="kpi-sub">全体平均</div>
+          <div class="kpi-sub">有効な予想の平均</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">予想中央値</div>
@@ -329,8 +331,9 @@
           <div class="kpi-sub"><span id="kpiModeCount">0</span> 名がこの帯を予想</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">有効予想範囲</div>
+          <div class="kpi-label">予想範囲 (Min - Max)</div>
           <div class="kpi-value" style="font-size: 16px;"><span id="kpiMin">0</span> - <span id="kpiMax">0</span> <span style="font-size: 11px; font-weight: normal; color: #64748b;">円</span></div>
+          <div class="kpi-sub">最小〜最大値</div>
         </div>
       </div>
 
@@ -339,7 +342,7 @@
         <div class="card-header">
           <div>
             <div class="card-title">金額分布ヒストグラム</div>
-            <div class="card-desc">視聴者の予想価格帯の分布</div>
+            <div class="card-desc">チェックを入れた予想の価格帯分布</div>
           </div>
           <button type="button" onclick="exportTransparentGraph(this)" class="btn-sub">
             透過PNG画像（1920x1080）を出力
@@ -399,16 +402,15 @@
         <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
           <div>
             <div class="card-title">コメント一覧 (<span id="commentCount">0</span> 件)</div>
-            <div class="card-desc">抽出結果と内訳の確認</div>
+            <div class="card-desc">チェックを外すと集計から除外され、統計が即時再計算されます</div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
-            <select id="filterSelect" onchange="handleFilterOrSortChange()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
-              <option value="valid">有効な予想のみ</option>
-              <option value="outlier">外れ値のみ</option>
-              <option value="no_price">金額なし・対象外</option>
+            <select id="filterSelect" onchange="renderTable()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
               <option value="all">すべてのコメント</option>
+              <option value="included">集計対象のみ</option>
+              <option value="excluded">除外・対象外のみ</option>
             </select>
-            <select id="sortSelect" onchange="handleFilterOrSortChange()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
+            <select id="sortSelect" onchange="renderTable()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
               <option value="likes">いいね数順</option>
               <option value="price_desc">金額が高い順</option>
               <option value="price_asc">金額が安い順</option>
@@ -419,6 +421,9 @@
           <table>
             <thead>
               <tr>
+                <th style="width: 50px; text-align: center;">
+                  <input type="checkbox" id="masterCheckbox" title="全選択/全解除" onchange="toggleAllCheckboxes(this.checked)" class="chk-include" checked />
+                </th>
                 <th style="width: 140px;">投稿者</th>
                 <th style="width: 110px; text-align: right;">抽出金額</th>
                 <th>コメント本文</th>
@@ -435,7 +440,9 @@
   </main>
 
   <script>
-    let currentData = null;
+    let rawComments = [];
+    let currentMetadata = {};
+    let calculatedStats = {};
     const SAMPLE_URL = 'https://www.youtube.com/post/UgkxjHhnb7b_31Ry7mGWXCmVnOL--bN4czrL';
 
     function loadSample() {
@@ -479,8 +486,16 @@
           throw new Error(data.detail || '集計に失敗しました');
         }
 
-        currentData = data;
-        renderAll(data);
+        currentMetadata = data.metadata || {};
+        // コメントに一意のIDと初期のincludedフラグ（金額があればtrue）を付与
+        rawComments = (data.stats.comments || []).map((c, idx) => ({
+          ...c,
+          uid: 'c_' + idx,
+          included: c.has_price
+        }));
+
+        renderHeader();
+        recalculateAndRender();
         if (dashboardArea) dashboardArea.style.display = 'block';
 
       } catch (err) {
@@ -495,43 +510,116 @@
       }
     }
 
-    function renderAll(data) {
-      const meta = data.metadata || {};
-      const stats = data.stats || {};
-      const summary = stats.summary || {};
-
-      setText('postAuthor', meta.author || 'YouTube チャンネル');
-      setText('postTime', meta.published_time || '');
-      setText('postTitle', meta.title || meta.post_text || '投稿');
-      setText('statTotal', (summary.total_comments || 0).toLocaleString());
-      setText('statValid', (summary.valid_answers_count || 0).toLocaleString());
-      setText('statOutlier', (summary.outlier_count || 0).toLocaleString());
+    function renderHeader() {
+      setText('postAuthor', currentMetadata.author || 'YouTube チャンネル');
+      setText('postTime', currentMetadata.published_time || '');
+      setText('postTitle', currentMetadata.title || currentMetadata.post_text || '投稿');
 
       const img = document.getElementById('postImg');
       if (img) {
-        if (meta.image_url) {
-          img.src = meta.image_url;
+        if (currentMetadata.image_url) {
+          img.src = currentMetadata.image_url;
           img.style.display = 'block';
         } else {
           img.style.display = 'none';
         }
       }
+    }
 
-      setText('kpiMean', (summary.mean_price || 0).toLocaleString());
-      setText('kpiMedian', (summary.median_price || 0).toLocaleString());
-      setText('kpiMode', (summary.mode_price || 0).toLocaleString());
-      setText('kpiModeCount', (summary.mode_count || 0).toLocaleString());
-      setText('kpiMin', (summary.min_price || 0).toLocaleString());
-      setText('kpiMax', (summary.max_price || 0).toLocaleString());
+    // クライアント側でミリ秒で全統計をリアルタイム再計算
+    function recalculateAndRender() {
+      const validItems = rawComments.filter(c => c.has_price && c.included);
+      const prices = validItems.map(c => c.price);
 
-      renderBars(stats.histogram || []);
-      renderTable(stats.comments || [], getVal('filterSelect') || 'valid', getVal('sortSelect') || 'likes');
+      const totalCount = rawComments.length;
+      const includedCount = validItems.length;
+      const excludedCount = totalCount - includedCount;
+
+      setText('statTotal', totalCount.toLocaleString());
+      setText('statIncluded', includedCount.toLocaleString());
+      setText('statExcluded', excludedCount.toLocaleString());
+
+      let meanVal = 0, medianVal = 0, modeVal = 0, modeCount = 0, minVal = 0, maxVal = 0;
+      let histogram = [];
+
+      if (prices.length > 0) {
+        prices.sort((a, b) => a - b);
+        const sum = prices.reduce((a, b) => a + b, 0);
+        meanVal = Math.round(sum / prices.length);
+
+        const mid = Math.floor(prices.length / 2);
+        medianVal = prices.length % 2 !== 0 ? prices[mid] : Math.round((prices[mid - 1] + prices[mid]) / 2);
+
+        minVal = prices[0];
+        maxVal = prices[prices.length - 1];
+
+        // 最頻値（100円単位で丸めて集計）
+        const counts = {};
+        prices.forEach(p => {
+          const r = Math.round(p / 100) * 100;
+          counts[r] = (counts[r] || 0) + 1;
+        });
+        let maxC = 0;
+        for (const [r, c] of Object.entries(counts)) {
+          if (c > maxC) {
+            maxC = c;
+            modeVal = parseFloat(r);
+            modeCount = c;
+          }
+        }
+
+        // ヒストグラム自動分割
+        const span = maxVal - minVal;
+        let binSize = 500;
+        if (span > 15000) binSize = 2000;
+        else if (span > 5000) binSize = 1000;
+
+        const binStart = Math.floor(minVal / binSize) * binSize;
+        const binEnd = Math.floor((maxVal / binSize) + 1) * binSize;
+
+        for (let b = binStart; b < binEnd; b += binSize) {
+          const nextB = b + binSize;
+          const countInBin = prices.filter(p => p >= b && (b === binEnd - binSize ? p <= nextB : p < nextB)).length;
+          if (countInBin > 0 || (b >= minVal && b <= maxVal)) {
+            histogram.push({
+              label: b.toLocaleString() + '〜' + nextB.toLocaleString() + '円',
+              range_min: b,
+              range_max: nextB,
+              count: countInBin,
+              percentage: Math.round((countInBin / prices.length) * 1000) / 10
+            });
+          }
+        }
+      }
+
+      calculatedStats = {
+        mean_price: meanVal,
+        median_price: medianVal,
+        mode_price: modeVal,
+        mode_count: modeCount,
+        min_price: minVal,
+        max_price: maxVal,
+        included_count: includedCount,
+        histogram: histogram
+      };
+
+      setText('kpiMean', meanVal.toLocaleString());
+      setText('kpiMedian', medianVal.toLocaleString());
+      setText('kpiMode', modeVal.toLocaleString());
+      setText('kpiModeCount', modeCount.toLocaleString());
+      setText('kpiMin', minVal.toLocaleString());
+      setText('kpiMax', maxVal.toLocaleString());
+
+      renderBars(histogram);
+      renderTable();
 
       const priceInput = document.getElementById('correctPriceInput');
-      const defaultPrice = summary.median_price || summary.mean_price || 0;
-      if (priceInput) priceInput.value = defaultPrice || '';
-      if (defaultPrice > 0) {
-        recomputeQuiz(defaultPrice);
+      if (priceInput && (!priceInput.value || parseFloat(priceInput.value) <= 0)) {
+        priceInput.value = medianVal || meanVal || '';
+      }
+      const currentQuizVal = parseFloat(priceInput ? priceInput.value : 0);
+      if (currentQuizVal > 0) {
+        recomputeQuiz(currentQuizVal);
       }
     }
 
@@ -541,7 +629,7 @@
       container.innerHTML = '';
 
       if (!histogram || histogram.length === 0) {
-        container.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 10px 0;">データがありません</div>';
+        container.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 10px 0;">データがありません（チェックを入れてください）</div>';
         return;
       }
 
@@ -564,53 +652,58 @@
       });
     }
 
-    function renderTable(comments, filterType, sortBy) {
+    function renderTable() {
       const tbody = document.getElementById('commentTbody');
       if (!tbody) return;
       tbody.innerHTML = '';
 
-      let filtered = (comments || []);
-      if (filterType === 'valid') {
-        filtered = filtered.filter(c => c.has_price && !c.is_outlier);
-      } else if (filterType === 'outlier') {
-        filtered = filtered.filter(c => c.has_price && c.is_outlier);
-      } else if (filterType === 'no_price') {
-        filtered = filtered.filter(c => !c.has_price);
+      const filterType = getVal('filterSelect') || 'all';
+      const sortBy = getVal('sortSelect') || 'likes';
+
+      let filtered = [...rawComments];
+      if (filterType === 'included') {
+        filtered = filtered.filter(c => c.has_price && c.included);
+      } else if (filterType === 'excluded') {
+        filtered = filtered.filter(c => !c.has_price || !c.included);
       }
 
       setText('commentCount', filtered.length);
 
-      const sorted = [...filtered];
       if (sortBy === 'likes') {
-        sorted.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+        filtered.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
       } else if (sortBy === 'price_desc') {
-        sorted.sort((a, b) => ((b.price || 0) - (a.price || 0)));
+        filtered.sort((a, b) => ((b.price || 0) - (a.price || 0)));
       } else if (sortBy === 'price_asc') {
-        sorted.sort((a, b) => ((a.price || 0) - (b.price || 0)));
+        filtered.sort((a, b) => ((a.price || 0) - (b.price || 0)));
       }
 
-      if (sorted.length === 0) {
+      if (filtered.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="4" style="text-align: center; color: #94a3b8; padding: 20px;">該当するコメントはありません</td>';
+        tr.innerHTML = '<td colspan="5" style="text-align: center; color: #94a3b8; padding: 20px;">該当するコメントはありません</td>';
         tbody.appendChild(tr);
         return;
       }
 
-      sorted.forEach(c => {
+      filtered.forEach(c => {
         const tr = document.createElement('tr');
+        if (!c.included || !c.has_price) {
+          tr.className = 'row-excluded';
+        }
+
         let priceText = '-';
         let priceStyle = 'color: #94a3b8;';
         if (c.has_price) {
-          if (c.is_outlier) {
-            priceText = (c.price || 0).toLocaleString() + '円 (外れ値)';
-            priceStyle = 'color: #ea580c; font-weight: 700;';
-          } else {
-            priceText = (c.price || 0).toLocaleString() + '円';
-            priceStyle = 'color: #0f172a; font-weight: 700;';
-          }
+          priceText = (c.price || 0).toLocaleString() + '円';
+          priceStyle = c.included ? 'color: #0f172a; font-weight: 700;' : 'color: #94a3b8; text-decoration: line-through;';
         }
 
+        const chkDisabled = !c.has_price ? 'disabled' : '';
+        const chkChecked = (c.has_price && c.included) ? 'checked' : '';
+
         tr.innerHTML = `
+          <td style="text-align: center;">
+            <input type="checkbox" class="chk-include" ${chkDisabled} ${chkChecked} onchange="toggleCommentInclusion('${c.uid}', this.checked)" />
+          </td>
           <td style="font-weight: 600; color: #0f172a;">${escapeHtml(c.author || '匿名')}</td>
           <td style="text-align: right; ${priceStyle}">${priceText}</td>
           <td>${escapeHtml(c.text || '')}</td>
@@ -620,24 +713,33 @@
       });
     }
 
-    function handleFilterOrSortChange() {
-      if (currentData && currentData.stats && currentData.stats.comments) {
-        renderTable(currentData.stats.comments, getVal('filterSelect') || 'valid', getVal('sortSelect') || 'likes');
+    function toggleCommentInclusion(uid, isChecked) {
+      const item = rawComments.find(c => c.uid === uid);
+      if (item) {
+        item.included = isChecked;
+        recalculateAndRender();
       }
+    }
+
+    function toggleAllCheckboxes(isChecked) {
+      rawComments.forEach(c => {
+        if (c.has_price) {
+          c.included = isChecked;
+        }
+      });
+      recalculateAndRender();
     }
 
     function applyQuiz() {
       const val = parseFloat(getVal('correctPriceInput'));
-      if (!isNaN(val) && val > 0 && currentData) {
+      if (!isNaN(val) && val > 0) {
         recomputeQuiz(val);
       }
     }
 
     function recomputeQuiz(correctPrice) {
-      if (!currentData || !currentData.stats) return;
-      const comments = currentData.stats.comments || [];
-      const valid = comments.filter(c => c.has_price && !c.is_outlier);
-      const meanVal = currentData.stats.summary.mean_price || 0;
+      const valid = rawComments.filter(c => c.has_price && c.included);
+      const meanVal = calculatedStats.mean_price || 0;
 
       const exact = [];
       const near = [];
@@ -677,8 +779,8 @@
       const scriptText = [
         '正解金額: ' + correctPrice.toLocaleString() + '円',
         '総予想回答数: ' + valid.length + '件',
-        '視聴者の予想平均: ' + meanVal.toLocaleString() + '円 (中央値: ' + (currentData.stats.summary.median_price || 0).toLocaleString() + '円)',
-        '最頻予想帯: ' + (currentData.stats.summary.mode_price || 0).toLocaleString() + '円前後 (' + (currentData.stats.summary.mode_count || 0) + '名)',
+        '視聴者の予想平均: ' + meanVal.toLocaleString() + '円 (中央値: ' + (calculatedStats.median_price || 0).toLocaleString() + '円)',
+        '最頻予想帯: ' + (calculatedStats.mode_price || 0).toLocaleString() + '円前後 (' + (calculatedStats.mode_count || 0) + '名)',
         'ピタリ賞: ' + exact.length + '名'
       ].join('\n');
 
@@ -720,9 +822,8 @@
     }
 
     function exportTransparentGraph(btn) {
-      if (!currentData || !currentData.stats) return;
-      const summary = currentData.stats.summary || {};
-      const histogram = currentData.stats.histogram || [];
+      const summary = calculatedStats || {};
+      const histogram = summary.histogram || [];
 
       const canvas = document.createElement('canvas');
       canvas.width = 1920;
@@ -747,7 +848,7 @@
       ctx.fillText('総予想回答数', 1530, 130);
       ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 38px sans-serif';
-      ctx.fillText((summary.valid_answers_count || 0).toLocaleString() + ' 件', 1530, 185);
+      ctx.fillText((summary.included_count || 0).toLocaleString() + ' 件', 1530, 185);
 
       drawRoundedRect(ctx, 80, 260, 1760, 740, 24, 'rgba(15, 23, 42, 0.94)');
 

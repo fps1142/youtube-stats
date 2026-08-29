@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 from typing import List, Dict, Any, Optional
 from collections import Counter
 from backend.price_parser import parse_price, filter_outliers
@@ -8,6 +8,7 @@ def calculate_statistics(raw_comments: List[Dict[str, Any]], correct_price: Opti
     
     for c in raw_comments:
         parsed = parse_price(c.get("text", ""))
+        has_price = parsed is not None
         item = {
             "comment_id": c.get("comment_id", ""),
             "author": c.get("author", "匿名"),
@@ -15,7 +16,7 @@ def calculate_statistics(raw_comments: List[Dict[str, Any]], correct_price: Opti
             "text": c.get("text", ""),
             "like_count": c.get("like_count", 0),
             "published_time": c.get("published_time", ""),
-            "has_price": parsed is not None,
+            "has_price": has_price,
             "price": parsed["price"] if parsed else None,
             "raw_price_str": parsed["raw_price_str"] if parsed else "",
             "is_range": parsed["is_range"] if parsed else False,
@@ -23,22 +24,12 @@ def calculate_statistics(raw_comments: List[Dict[str, Any]], correct_price: Opti
             "range_high": parsed.get("range_high") if parsed else None,
             "is_tax_excluded": parsed["is_tax_excluded"] if parsed else False,
             "reason": parsed["reason"] if parsed else "",
-            "is_outlier": False
+            "included": c.get("included", has_price)
         }
         parsed_items.append(item)
 
-    # 価格があるものだけ抽出
-    price_items = [item for item in parsed_items if item["has_price"]]
-    prices = [item["price"] for item in price_items]
-
-    # 外れ値判定
-    if prices:
-        valid_mask = filter_outliers(prices)
-        for item, is_valid in zip(price_items, valid_mask):
-            item["is_outlier"] = not is_valid
-
-    # 統計用（外れ値を除外した有効価格リスト）
-    valid_items = [item for item in price_items if not item["is_outlier"]]
+    # 統計用（チェックされている有効価格リスト）
+    valid_items = [item for item in parsed_items if item["has_price"] and item["included"]]
     valid_prices = [item["price"] for item in valid_items]
 
     # 基本統計量
@@ -162,7 +153,7 @@ def calculate_statistics(raw_comments: List[Dict[str, Any]], correct_price: Opti
         "summary": {
             "total_comments": total_comments,
             "valid_answers_count": valid_answers_count,
-            "outlier_count": len([i for i in price_items if i["is_outlier"]]),
+            "excluded_count": total_comments - valid_answers_count,
             "mean_price": round(mean_val, 0),
             "median_price": round(median_val, 0),
             "mode_price": round(mode_val, 0),
