@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube 相場予想集計ツール</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      line-height: 1.5;
+      padding-bottom: 60px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-inner {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 700;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .brand-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-top: 16px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .card-desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+    .input-row { display: flex; gap: 8px; margin-top: 8px; }
+    .input-text {
+      flex: 1;
+      padding: 9px 12px;
+      font-size: 13px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      outline: none;
+    }
+    .input-text:focus { border-color: #0f172a; background: #ffffff; }
+
+    .btn-primary {
+      padding: 9px 18px;
+      background: #0f172a;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: #1e293b; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-sub {
+      padding: 6px 12px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-sub:hover { background: #e2e8f0; }
+
+    .sample-btn {
+      font-size: 12px;
+      color: #2563eb;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+      font-weight: 500;
+    }
+
+    .loading-box {
+      text-align: center;
+      padding: 36px 0;
+      display: none;
+    }
+    .spinner {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      border: 2.5px solid #cbd5e1;
+      border-top-color: #0f172a;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* 投稿ヘッダー */
+    .post-header { display: flex; gap: 14px; align-items: flex-start; }
+    .post-img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      flex-shrink: 0;
+      display: none;
+    }
+    .post-author { font-size: 13px; font-weight: 600; color: #0f172a; }
+    .post-time { font-size: 11px; color: #64748b; margin-left: 6px; }
+    .post-title { font-size: 13px; font-weight: 600; color: #334155; margin-top: 2px; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .badge {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* KPI */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .kpi-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+    .kpi-label { font-size: 11px; color: #64748b; font-weight: 500; }
+    .kpi-value { font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 2px; }
+    .kpi-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+    /* 棒グラフ */
+    .chart-container { margin-top: 12px; }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+    .bar-label { width: 130px; color: #475569; text-align: right; flex-shrink: 0; font-family: monospace; font-size: 11px; }
+    .bar-track { flex: 1; background: #f1f5f9; border-radius: 3px; height: 18px; overflow: hidden; }
+    .bar-fill { height: 100%; background: #334155; border-radius: 3px; }
+    .bar-value { width: 75px; color: #0f172a; font-weight: 600; font-size: 11px; }
+
+    /* 正解判定 */
+    .quiz-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .input-number {
+      width: 100px;
+      padding: 6px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      text-align: right;
+    }
+    .script-textarea {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #334155;
+      line-height: 1.5;
+      resize: vertical;
+      margin-top: 4px;
+    }
+
+    .exact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .exact-item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+
+    /* コメントテーブル */
+    .table-container {
+      overflow-x: auto;
+      max-height: 360px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+    th { background: #f8fafc; color: #475569; padding: 7px 10px; font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    tr:hover { background: #f8fafc; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-badge">STAT</span>
+        <span class="brand-title">YouTube 相場予想集計</span>
+      </div>
+      <div style="font-size: 12px; color: #64748b;">動画制作向け統計ツール</div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- URL入力 -->
+    <div class="card">
+      <form id="analyzeForm" onsubmit="handleFormSubmit(event)">
+        <label style="font-size: 12px; font-weight: 600; color: #475569;">対象のYouTube投稿または動画のURL</label>
+        <div class="input-row">
+          <input
+            type="text"
+            id="postUrl"
+            required
+            placeholder="https://www.youtube.com/post/UgkxjHhnb7b_31Ry7mGWXCmVnOL--bN4czrL"
+            class="input-text"
+          />
+          <button type="submit" id="submitBtn" class="btn-primary">
+            <span id="btnText">集計を開始</span>
+          </button>
+        </div>
+        <div style="margin-top: 6px;">
+          <span style="font-size: 11px; color: #64748b;">サンプル: </span>
+          <button type="button" onclick="loadSample()" class="sample-btn">
+            TOMIKKU NET 海鮮丼クイズ投稿
+          </button>
+        </div>
+      </form>
+      <div id="alertBox" class="alert-error"></div>
+    </div>
+
+    <!-- ローディング（解析中のみ表示） -->
+    <div id="loadingBox" class="loading-box">
+      <div class="spinner"></div>
+      <div style="font-size: 13px; font-weight: 600; color: #475569; margin-top: 8px;">解析中</div>
+    </div>
+
+    <!-- 結果エリア -->
+    <div id="dashboardArea" style="display: none;">
+
+      <!-- 投稿情報 -->
+      <div class="card post-header">
+        <img id="postImg" class="post-img" src="" alt="サムネイル" />
+        <div style="flex: 1;">
+          <div>
+            <span id="postAuthor" class="post-author"></span>
+            <span id="postTime" class="post-time"></span>
+          </div>
+          <div id="postTitle" class="post-title"></div>
+          <div class="badges">
+            <div class="badge">総コメント数: <strong id="statTotal">0</strong>件</div>
+            <div class="badge">有効予想数: <strong id="statValid">0</strong>件</div>
+            <div class="badge">外れ値除外: <strong id="statOutlier">0</strong>件</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 統計KPIサマリー -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">予想平均値</div>
+          <div class="kpi-value"><span id="kpiMean">0</span> <span style="font-size: 12px; font-weight: normal; color: #64748b;">円</span></div>
+          <div class="kpi-sub">全体平均</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">予想中央値</div>
+          <div class="kpi-value"><span id="kpiMedian">0</span> <span style="font-size: 12px; font-weight: normal; color: #64748b;">円</span></div>
+          <div class="kpi-sub">ちょうど中間の予想</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">最頻予想帯</div>
+          <div class="kpi-value"><span id="kpiMode">0</span> <span style="font-size: 12px; font-weight: normal; color: #64748b;">円</span></div>
+          <div class="kpi-sub"><span id="kpiModeCount">0</span> 名がこの帯を予想</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">有効予想範囲</div>
+          <div class="kpi-value" style="font-size: 16px;"><span id="kpiMin">0</span> - <span id="kpiMax">0</span> <span style="font-size: 11px; font-weight: normal; color: #64748b;">円</span></div>
+        </div>
+      </div>
+
+      <!-- 金額分布ヒストグラム ＆ 16:9透過PNG書き出し -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">金額分布ヒストグラム</div>
+            <div class="card-desc">視聴者の予想価格帯の分布</div>
+          </div>
+          <button type="button" onclick="exportTransparentGraph(this)" class="btn-sub">
+            透過PNG画像（1920x1080）を出力
+          </button>
+        </div>
+        <div id="chartBars" class="chart-container"></div>
+      </div>
+
+      <!-- 正解判定 ＆ ピタリ賞 -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+          <div>
+            <div class="card-title">正解発表 ＆ ピタリ賞判定</div>
+            <div class="card-desc">実際の正解金額を入力して判定します</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px; font-weight: 600; color: #475569;">正解金額:</span>
+            <input type="number" id="correctPriceInput" placeholder="例: 3800" class="input-number" />
+            <span style="font-size: 12px;">円</span>
+            <button type="button" onclick="applyQuiz()" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">判定</button>
+          </div>
+        </div>
+
+        <div class="quiz-box">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+            <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 11px; color: #64748b;">ピタリ賞（完全一致）</div>
+              <div style="font-size: 16px; font-weight: 700; color: #dc2626; margin-top: 1px;"><span id="exactCount">0</span> 名</div>
+            </div>
+            <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 11px; color: #64748b;">ニアピン賞（惜しかった人）</div>
+              <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 1px;"><span id="nearCount">0</span> 名</div>
+            </div>
+            <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 11px; color: #64748b;">平均値との差額</div>
+              <div style="font-size: 16px; font-weight: 700; color: #2563eb; margin-top: 1px;" id="gapText">0 円</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 11px; font-weight: 600; color: #475569;">動画用トーク台本メモ</div>
+              <button type="button" onclick="copyScript()" id="copyScriptBtn" style="font-size: 11px; color: #2563eb; background: none; border: none; cursor: pointer; font-weight: 600;">台本をコピー</button>
+            </div>
+            <textarea id="scriptArea" readonly rows="5" class="script-textarea"></textarea>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div style="font-size: 11px; font-weight: 600; color: #475569;">ピタリ賞 受賞者</div>
+            <div id="exactList" class="exact-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- コメント一覧 -->
+      <div class="card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
+          <div>
+            <div class="card-title">コメント一覧 (<span id="commentCount">0</span> 件)</div>
+            <div class="card-desc">抽出結果と内訳の確認</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <select id="filterSelect" onchange="handleFilterOrSortChange()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
+              <option value="valid">有効な予想のみ</option>
+              <option value="outlier">外れ値のみ</option>
+              <option value="no_price">金額なし・対象外</option>
+              <option value="all">すべてのコメント</option>
+            </select>
+            <select id="sortSelect" onchange="handleFilterOrSortChange()" style="padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
+              <option value="likes">いいね数順</option>
+              <option value="price_desc">金額が高い順</option>
+              <option value="price_asc">金額が安い順</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 140px;">投稿者</th>
+                <th style="width: 110px; text-align: right;">抽出金額</th>
+                <th>コメント本文</th>
+                <th style="width: 70px; text-align: right;">いいね数</th>
+              </tr>
+            </thead>
+            <tbody id="commentTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    let currentData = null;
+    const SAMPLE_URL = 'https://www.youtube.com/post/UgkxjHhnb7b_31Ry7mGWXCmVnOL--bN4czrL';
+
+    function loadSample() {
+      const input = document.getElementById('postUrl');
+      if (input) {
+        input.value = SAMPLE_URL;
+        handleFormSubmit();
+      }
+    }
+
+    async function handleFormSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('postUrl');
+      const url = input ? input.value.trim() : '';
+      if (!url) return;
+
+      const loadingBox = document.getElementById('loadingBox');
+      const dashboardArea = document.getElementById('dashboardArea');
+      const alertBox = document.getElementById('alertBox');
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (loadingBox) loadingBox.style.display = 'block';
+      if (dashboardArea) dashboardArea.style.display = 'none';
+      if (alertBox) alertBox.style.display = 'none';
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url, max_comments: 2000 })
+        });
+
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(errData.detail || ('HTTPエラー: ' + resp.status));
+        }
+
+        const data = await resp.json();
+        if (!data.success) {
+          throw new Error(data.detail || '集計に失敗しました');
+        }
+
+        currentData = data;
+        renderAll(data);
+        if (dashboardArea) dashboardArea.style.display = 'block';
+
+      } catch (err) {
+        console.error(err);
+        if (alertBox) {
+          alertBox.textContent = 'エラー: ' + (err.message || 'URLをご確認ください。');
+          alertBox.style.display = 'block';
+        }
+      } finally {
+        if (loadingBox) loadingBox.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    }
+
+    function renderAll(data) {
+      const meta = data.metadata || {};
+      const stats = data.stats || {};
+      const summary = stats.summary || {};
+
+      setText('postAuthor', meta.author || 'YouTube チャンネル');
+      setText('postTime', meta.published_time || '');
+      setText('postTitle', meta.title || meta.post_text || '投稿');
+      setText('statTotal', (summary.total_comments || 0).toLocaleString());
+      setText('statValid', (summary.valid_answers_count || 0).toLocaleString());
+      setText('statOutlier', (summary.outlier_count || 0).toLocaleString());
+
+      const img = document.getElementById('postImg');
+      if (img) {
+        if (meta.image_url) {
+          img.src = meta.image_url;
+          img.style.display = 'block';
+        } else {
+          img.style.display = 'none';
+        }
+      }
+
+      setText('kpiMean', (summary.mean_price || 0).toLocaleString());
+      setText('kpiMedian', (summary.median_price || 0).toLocaleString());
+      setText('kpiMode', (summary.mode_price || 0).toLocaleString());
+      setText('kpiModeCount', (summary.mode_count || 0).toLocaleString());
+      setText('kpiMin', (summary.min_price || 0).toLocaleString());
+      setText('kpiMax', (summary.max_price || 0).toLocaleString());
+
+      renderBars(stats.histogram || []);
+      renderTable(stats.comments || [], getVal('filterSelect') || 'valid', getVal('sortSelect') || 'likes');
+
+      const priceInput = document.getElementById('correctPriceInput');
+      const defaultPrice = summary.median_price || summary.mean_price || 0;
+      if (priceInput) priceInput.value = defaultPrice || '';
+      if (defaultPrice > 0) {
+        recomputeQuiz(defaultPrice);
+      }
+    }
+
+    function renderBars(histogram) {
+      const container = document.getElementById('chartBars');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!histogram || histogram.length === 0) {
+        container.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 10px 0;">データがありません</div>';
+        return;
+      }
+
+      const maxCount = Math.max(...histogram.map(h => h.count), 1);
+
+      histogram.forEach(item => {
+        const pct = item.percentage || 0;
+        const widthPct = Math.round((item.count / maxCount) * 100);
+
+        const row = document.createElement('div');
+        row.className = 'bar-row';
+        row.innerHTML = `
+          <div class="bar-label">${escapeHtml(item.label)}</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: ${widthPct}%;"></div>
+          </div>
+          <div class="bar-value">${item.count}名 (${pct}%)</div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function renderTable(comments, filterType, sortBy) {
+      const tbody = document.getElementById('commentTbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      let filtered = (comments || []);
+      if (filterType === 'valid') {
+        filtered = filtered.filter(c => c.has_price && !c.is_outlier);
+      } else if (filterType === 'outlier') {
+        filtered = filtered.filter(c => c.has_price && c.is_outlier);
+      } else if (filterType === 'no_price') {
+        filtered = filtered.filter(c => !c.has_price);
+      }
+
+      setText('commentCount', filtered.length);
+
+      const sorted = [...filtered];
+      if (sortBy === 'likes') {
+        sorted.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+      } else if (sortBy === 'price_desc') {
+        sorted.sort((a, b) => ((b.price || 0) - (a.price || 0)));
+      } else if (sortBy === 'price_asc') {
+        sorted.sort((a, b) => ((a.price || 0) - (b.price || 0)));
+      }
+
+      if (sorted.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="4" style="text-align: center; color: #94a3b8; padding: 20px;">該当するコメントはありません</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      sorted.forEach(c => {
+        const tr = document.createElement('tr');
+        let priceText = '-';
+        let priceStyle = 'color: #94a3b8;';
+        if (c.has_price) {
+          if (c.is_outlier) {
+            priceText = (c.price || 0).toLocaleString() + '円 (外れ値)';
+            priceStyle = 'color: #ea580c; font-weight: 700;';
+          } else {
+            priceText = (c.price || 0).toLocaleString() + '円';
+            priceStyle = 'color: #0f172a; font-weight: 700;';
+          }
+        }
+
+        tr.innerHTML = `
+          <td style="font-weight: 600; color: #0f172a;">${escapeHtml(c.author || '匿名')}</td>
+          <td style="text-align: right; ${priceStyle}">${priceText}</td>
+          <td>${escapeHtml(c.text || '')}</td>
+          <td style="text-align: right; color: #64748b;">${c.like_count || 0}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleFilterOrSortChange() {
+      if (currentData && currentData.stats && currentData.stats.comments) {
+        renderTable(currentData.stats.comments, getVal('filterSelect') || 'valid', getVal('sortSelect') || 'likes');
+      }
+    }
+
+    function applyQuiz() {
+      const val = parseFloat(getVal('correctPriceInput'));
+      if (!isNaN(val) && val > 0 && currentData) {
+        recomputeQuiz(val);
+      }
+    }
+
+    function recomputeQuiz(correctPrice) {
+      if (!currentData || !currentData.stats) return;
+      const comments = currentData.stats.comments || [];
+      const valid = comments.filter(c => c.has_price && !c.is_outlier);
+      const meanVal = currentData.stats.summary.mean_price || 0;
+
+      const exact = [];
+      const near = [];
+      const nearMargin = Math.max(300, correctPrice * 0.10);
+
+      valid.forEach(item => {
+        const p = item.price || 0;
+        const diff = p - correctPrice;
+        const absDiff = Math.abs(diff);
+        if (absDiff === 0 || (item.is_range && item.range_low <= correctPrice && correctPrice <= item.range_high)) {
+          exact.push(item);
+        } else if (absDiff <= nearMargin) {
+          near.push({ ...item, diff, abs_diff: absDiff });
+        }
+      });
+
+      near.sort((a, b) => a.abs_diff - b.abs_diff);
+      const diffFromMean = correctPrice - meanVal;
+
+      setText('exactCount', exact.length);
+      setText('nearCount', near.length);
+
+      const gapElem = document.getElementById('gapText');
+      if (gapElem) {
+        if (diffFromMean > 0) {
+          gapElem.textContent = '+' + Math.round(diffFromMean).toLocaleString() + ' 円';
+          gapElem.style.color = '#d97706';
+        } else if (diffFromMean < 0) {
+          gapElem.textContent = Math.round(diffFromMean).toLocaleString() + ' 円';
+          gapElem.style.color = '#2563eb';
+        } else {
+          gapElem.textContent = '0 円';
+          gapElem.style.color = '#16a34a';
+        }
+      }
+
+      const scriptText = [
+        '正解金額: ' + correctPrice.toLocaleString() + '円',
+        '総予想回答数: ' + valid.length + '件',
+        '視聴者の予想平均: ' + meanVal.toLocaleString() + '円 (中央値: ' + (currentData.stats.summary.median_price || 0).toLocaleString() + '円)',
+        '最頻予想帯: ' + (currentData.stats.summary.mode_price || 0).toLocaleString() + '円前後 (' + (currentData.stats.summary.mode_count || 0) + '名)',
+        'ピタリ賞: ' + exact.length + '名'
+      ].join('\n');
+
+      const scriptArea = document.getElementById('scriptArea');
+      if (scriptArea) scriptArea.value = scriptText;
+
+      const exactList = document.getElementById('exactList');
+      if (exactList) {
+        exactList.innerHTML = '';
+        if (exact.length === 0) {
+          exactList.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 4px 0;">ピタリ賞はいませんでした</div>';
+        } else {
+          exact.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'exact-item';
+            div.innerHTML = `
+              <div style="display: flex; justify-content: space-between;">
+                <span style="font-weight: 600; color: #0f172a;">${escapeHtml(item.author || '匿名')}</span>
+                <span style="font-weight: 700; color: #dc2626;">${(item.price || 0).toLocaleString()}円</span>
+              </div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${escapeHtml(item.text || '')}</div>
+            `;
+            exactList.appendChild(div);
+          });
+        }
+      }
+    }
+
+    function copyScript() {
+      const area = document.getElementById('scriptArea');
+      const btn = document.getElementById('copyScriptBtn');
+      if (area && btn) {
+        area.select();
+        navigator.clipboard.writeText(area.value);
+        const original = btn.textContent;
+        btn.textContent = 'コピー完了';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }
+    }
+
+    function exportTransparentGraph(btn) {
+      if (!currentData || !currentData.stats) return;
+      const summary = currentData.stats.summary || {};
+      const histogram = currentData.stats.histogram || [];
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 1920;
+      canvas.height = 1080;
+      const ctx = canvas.getContext('2d');
+
+      ctx.clearRect(0, 0, 1920, 1080);
+
+      drawRoundedRect(ctx, 80, 80, 700, 140, 16, 'rgba(15, 23, 42, 0.92)');
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '500 24px sans-serif';
+      ctx.fillText('視聴者による相場予想分布', 116, 130);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillText('平均予想: ', 116, 185);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText((summary.mean_price || 0).toLocaleString() + ' 円', 290, 185);
+
+      drawRoundedRect(ctx, 1500, 80, 340, 140, 16, 'rgba(15, 23, 42, 0.92)');
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '500 22px sans-serif';
+      ctx.fillText('総予想回答数', 1530, 130);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillText((summary.valid_answers_count || 0).toLocaleString() + ' 件', 1530, 185);
+
+      drawRoundedRect(ctx, 80, 260, 1760, 740, 24, 'rgba(15, 23, 42, 0.94)');
+
+      if (histogram.length > 0) {
+        const maxCount = Math.max(...histogram.map(h => h.count), 1);
+        const barAreaX = 140;
+        const barAreaY = 320;
+        const barAreaW = 1640;
+        const barAreaH = 620;
+        const barCount = Math.min(histogram.length, 10);
+        const rowHeight = barAreaH / barCount;
+
+        histogram.slice(0, 10).forEach((item, idx) => {
+          const y = barAreaY + idx * rowHeight;
+          const barW = Math.max(10, (item.count / maxCount) * (barAreaW - 400));
+
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = 'bold 22px monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText(item.label, barAreaX + 220, y + rowHeight * 0.65);
+
+          drawRoundedRect(ctx, barAreaX + 250, y + 10, barAreaW - 450, rowHeight - 20, 6, 'rgba(255,255,255,0.08)');
+          drawRoundedRect(ctx, barAreaX + 250, y + 10, barW, rowHeight - 20, 6, '#38bdf8');
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 22px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(item.count + ' 名 (' + item.percentage + '%)', barAreaX + 265 + barW, y + rowHeight * 0.65);
+        });
+      }
+
+      downloadCanvas(canvas, 'youtube_price_chart_1080p.png');
+      showDownloadFeedback(btn);
+    }
+
+    function setText(id, txt) {
+      const elem = document.getElementById(id);
+      if (elem) elem.textContent = txt;
+    }
+    function getVal(id) {
+      const elem = document.getElementById(id);
+      return elem ? elem.value : '';
+    }
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    function showDownloadFeedback(btn) {
+      if (!btn) return;
+      const original = btn.textContent;
+      btn.textContent = '保存完了';
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    }
+  </script>
+</body>
+</html>

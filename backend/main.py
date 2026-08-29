@@ -41,6 +41,7 @@ class RecomputeQuizRequest(BaseModel):
     correct_price: float
 
 @app.post("/api/analyze")
+@app.post("/analyze")
 async def analyze_url(req: AnalyzeRequest):
     if not req.url:
         raise HTTPException(status_code=400, detail="URLを入力してください")
@@ -61,6 +62,7 @@ async def analyze_url(req: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/recompute-quiz")
+@app.post("/recompute-quiz")
 async def recompute_quiz(req: RecomputeQuizRequest):
     try:
         stats = calculate_statistics(req.comments, correct_price=req.correct_price)
@@ -72,6 +74,7 @@ async def recompute_quiz(req: RecomputeQuizRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/health")
+@app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
