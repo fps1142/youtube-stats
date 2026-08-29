@@ -147,91 +147,101 @@
     }
 
     /* 画像ギャラリー・スライダー */
+    /* 画像ギャラリー・スライダー（ふち・黒帯を撤廃したクリーンデザイン） */
     .image-gallery {
       margin-top: 14px;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #0f172a;
-      border: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
     }
     .gallery-wrapper {
       position: relative;
-      width: 100%;
-      height: 380px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: #090d16;
+      max-width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      background: #f1f5f9;
     }
     .gallery-img {
       max-width: 100%;
-      max-height: 380px;
+      max-height: 480px;
       width: auto;
       height: auto;
       object-fit: contain;
       display: block;
+      border-radius: 8px;
       user-select: none;
     }
     .gallery-nav-btn {
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      background: rgba(15, 23, 42, 0.75);
-      color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.9);
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
       width: 38px;
       height: 38px;
       border-radius: 50%;
       font-size: 22px;
       line-height: 1;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s, transform 0.15s;
-      z-index: 5;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      z-index: 10;
     }
-    .gallery-nav-btn:hover { background: rgba(15, 23, 42, 0.95); transform: translateY(-50%) scale(1.05); }
+    .gallery-nav-btn:hover {
+      background: #ffffff;
+      transform: translateY(-50%) scale(1.08);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+    }
     .prev-btn { left: 12px; }
     .next-btn { right: 12px; }
     .gallery-counter {
       position: absolute;
       bottom: 12px;
       right: 12px;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
       color: #ffffff;
       padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 12px;
+      border-radius: 20px;
+      font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.5px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      z-index: 5;
+      z-index: 10;
     }
     .gallery-thumbs {
       display: flex;
-      gap: 8px;
-      padding: 8px 12px;
-      background: #0f172a;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      gap: 10px;
+      margin-top: 10px;
+      padding: 4px;
       overflow-x: auto;
       justify-content: center;
+      max-width: 100%;
     }
     .thumb-item {
-      width: 52px;
-      height: 52px;
+      width: 56px;
+      height: 56px;
       object-fit: cover;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
-      opacity: 0.45;
-      border: 2px solid transparent;
-      transition: opacity 0.15s, border-color 0.15s;
+      opacity: 0.5;
+      border: 2px solid #e2e8f0;
+      transition: opacity 0.15s, border-color 0.15s, transform 0.15s;
     }
-    .thumb-item:hover { opacity: 0.8; }
+    .thumb-item:hover { opacity: 0.85; transform: translateY(-2px); }
     .thumb-item.active {
       opacity: 1;
-      border-color: #38bdf8;
+      border-color: #2563eb;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
     }
 
     /* KPI */
@@ -553,7 +563,7 @@
       }
     }
 
-    const CACHE_KEY = 'yt_price_stats_cache_v1';
+    const CACHE_KEY = 'yt_price_stats_cache_v3';
     const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24時間保持
 
     function saveSession(url) {
@@ -615,6 +625,13 @@
 
     window.addEventListener('DOMContentLoaded', restoreSession);
 
+    // キーボード（← / →）で画像切り替え
+    window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'ArrowRight') nextImage();
+    });
+
     let postImages = [];
     let currentImageIndex = 0;
 
@@ -630,7 +647,7 @@
 
       const gallery = document.getElementById('imageGallery');
       if (postImages.length > 0) {
-        if (gallery) gallery.style.display = 'block';
+        if (gallery) gallery.style.display = 'flex';
         showGalleryImage(0);
       } else {
         if (gallery) gallery.style.display = 'none';
@@ -642,7 +659,11 @@
       currentImageIndex = index;
 
       const img = document.getElementById('galleryImg');
-      if (img) img.src = postImages[index];
+      if (img) {
+        img.src = postImages[index];
+        img.onclick = () => { if (postImages.length > 1) nextImage(); };
+        img.style.cursor = postImages.length > 1 ? 'pointer' : 'default';
+      }
 
       const prevBtn = document.getElementById('prevImgBtn');
       const nextBtn = document.getElementById('nextImgBtn');
@@ -664,7 +685,10 @@
             thumb.className = 'thumb-item' + (i === currentImageIndex ? ' active' : '');
             thumb.src = imgUrl;
             thumb.alt = 'サムネイル ' + (i + 1);
-            thumb.onclick = () => showGalleryImage(i);
+            thumb.onclick = (ev) => {
+              ev.stopPropagation();
+              showGalleryImage(i);
+            };
             thumbsContainer.appendChild(thumb);
           });
         }
@@ -676,13 +700,15 @@
       }
     }
 
-    function prevImage() {
+    function prevImage(ev) {
+      if (ev) ev.stopPropagation();
       if (postImages.length <= 1) return;
       const newIdx = (currentImageIndex - 1 + postImages.length) % postImages.length;
       showGalleryImage(newIdx);
     }
 
-    function nextImage() {
+    function nextImage(ev) {
+      if (ev) ev.stopPropagation();
       if (postImages.length <= 1) return;
       const newIdx = (currentImageIndex + 1) % postImages.length;
       showGalleryImage(newIdx);
