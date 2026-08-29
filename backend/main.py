@@ -76,9 +76,18 @@ async def health_check():
     return {"status": "ok"}
 
 # 静的ファイルの配信
-frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+
+@app.get("/")
+async def serve_root():
+    index_path = os.path.join(frontend_dir, "index.html")
+    if os.path.exists(index_path):
+        from fastapi.responses import FileResponse
+        return FileResponse(index_path)
+    return {"status": "ok", "message": "YouTube Price Guess Analytics API is running"}
+
 if os.path.exists(frontend_dir):
-    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 if __name__ == "__main__":
     import uvicorn
