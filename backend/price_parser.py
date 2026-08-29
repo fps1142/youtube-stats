@@ -15,19 +15,21 @@ def normalize_text(text: str) -> str:
     for k, v in kanji_digits.items():
         text = text.replace(k, v)
 
-    # 「千」「万」の直前に数字がない場合は1を補完 (例: 千円 -> 1千円)
+    # 「百」「千」「万」の直前に数字がない場合は1を補完 (例: 百円 -> 1百円, 千円 -> 1千円)
+    text = re.sub(r'(?<!\d)百', '1百', text)
     text = re.sub(r'(?<!\d)千', '1千', text)
     text = re.sub(r'(?<!\d)万', '1万', text)
     return text
 
 def _parse_val_from_token(token: str) -> Optional[float]:
     token = token.strip()
-    # 〇万〇千〇
-    man_match = re.search(r'(\d+(?:\.\d+)?)\s*万\s*(?:(\d+)\s*千)?(?:\s*(\d+))?', token)
+    # 〇万〇千〇百〇
+    man_match = re.search(r'(\d+(?:\.\d+)?)\s*万\s*(?:(\d+)\s*千)?(?:\s*(\d+)\s*百)?(?:\s*(\d+))?', token)
     if man_match:
         val = float(man_match.group(1)) * 10000
         if man_match.group(2): val += float(man_match.group(2)) * 1000
-        if man_match.group(3): val += float(man_match.group(3))
+        if man_match.group(3): val += float(man_match.group(3)) * 100
+        if man_match.group(4): val += float(man_match.group(4))
         return val
 
     # 〇千〇百
@@ -36,6 +38,13 @@ def _parse_val_from_token(token: str) -> Optional[float]:
         val = float(sen_match.group(1)) * 1000
         if sen_match.group(2): val += float(sen_match.group(2)) * 100
         elif sen_match.group(3): val += float(sen_match.group(3))
+        return val
+
+    # 〇百
+    hyaku_match = re.search(r'(\d+)\s*百(?:\s*(\d+))?', token)
+    if hyaku_match:
+        val = float(hyaku_match.group(1)) * 100
+        if hyaku_match.group(2): val += float(hyaku_match.group(2))
         return val
 
     # k表記
@@ -51,12 +60,12 @@ def _parse_val_from_token(token: str) -> Optional[float]:
     return None
 
 def _parse_single_segment(clean_text: str, is_tax_excluded: bool) -> Optional[Dict[str, Any]]:
-    # 1. 範囲指定 (例: 3500〜4000円, 3千〜4千円, 3000~4000, 3千円から4500円)
+    # 1. 範囲指定 (例: 3500〜4000円, 3千〜4千円, 500〜1000円, 5百〜千円)
     range_match = re.search(r'((?:\d+(?:\.\d+)?\s*万)?(?:\d+\s*千)?(?:\d+\s*百)?\d+)\s*(?:円|えん)?\s*(?:[〜~～\-]|から)\s*((?:\d+(?:\.\d+)?\s*万)?(?:\d+\s*千)?(?:\d+\s*百)?\d+)\s*(?:円|えん)?', clean_text)
     if range_match:
         low = _parse_val_from_token(range_match.group(1))
         high = _parse_val_from_token(range_match.group(2))
-        if low is not None and high is not None and 100 <= low < high <= 10000000:
+        if low is not None and high is not None and 50 <= low < high <= 10000000:
             avg_price = (low + high) / 2
             reason = clean_text.replace(range_match.group(0), '').strip(' :：,、。!?！？\n\t')
             return {
@@ -71,14 +80,16 @@ def _parse_single_segment(clean_text: str, is_tax_excluded: bool) -> Optional[Di
             }
 
     # 2. 〇万〇千〇円 (例: 1万2000円, 1.5万, 1万5千円, 1万)
-    man_match = re.search(r'(\d+(?:\.\d+)?)\s*万\s*(?:(\d+)\s*千)?(?:\s*(\d+))?\s*(?:円|えん)?', clean_text)
+    man_match = re.search(r'(\d+(?:\.\d+)?)\s*万\s*(?:(\d+)\s*千)?(?:\s*(\d+)\s*百)?(?:\s*(\d+))?\s*(?:円|えん)?', clean_text)
     if man_match:
         val = float(man_match.group(1)) * 10000
         if man_match.group(2):
             val += float(man_match.group(2)) * 1000
         if man_match.group(3):
-            val += float(man_match.group(3))
-        if 100 <= val <= 10000000:
+            val += float(man_match.group(3)) * 100
+        if man_match.group(4):
+            val += float(man_match.group(4))
+        if 50 <= val <= 10000000:
             reason = clean_text.replace(man_match.group(0), '').strip(' :：,、。!?！？\n\t')
             return {
                 'price': int(val),
@@ -97,11 +108,28 @@ def _parse_single_segment(clean_text: str, is_tax_excluded: bool) -> Optional[Di
             val += int(sen_match.group(2)) * 100
         elif sen_match.group(3):
             val += int(sen_match.group(3))
-        if 100 <= val <= 10000000:
+        if 50 <= val <= 10000000:
             reason = clean_text.replace(sen_match.group(0), '').strip(' :：,、。!?！？\n\t')
             return {
                 'price': int(val),
                 'raw_price_str': sen_match.group(0),
+                'is_range': False,
+                'is_tax_excluded': is_tax_excluded,
+                'confidence': 0.95,
+                'reason': reason if len(reason) > 2 else ''
+            }
+
+    # 4. 〇百 (例: 五百円, 5百円, 8百円, 5百, 八百円)
+    hyaku_match = re.search(r'(\d+)\s*百(?:\s*(\d+))?\s*(?:円|えん)?', clean_text)
+    if hyaku_match:
+        val = int(hyaku_match.group(1)) * 100
+        if hyaku_match.group(2):
+            val += int(hyaku_match.group(2))
+        if 50 <= val <= 10000000:
+            reason = clean_text.replace(hyaku_match.group(0), '').strip(' :：,、。!?！？\n\t')
+            return {
+                'price': int(val),
+                'raw_price_str': hyaku_match.group(0),
                 'is_range': False,
                 'is_tax_excluded': is_tax_excluded,
                 'confidence': 0.95,
