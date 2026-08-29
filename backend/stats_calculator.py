@@ -52,33 +52,33 @@ def calculate_statistics(raw_comments: List[Dict[str, Any]], correct_price: Opti
         mode_val = float(most_common[0][0]) if most_common else median_val
         mode_count = most_common[0][1] if most_common else 0
 
-        # 1万円までは1000円刻み固定、1万円以上は1つの枠に集約
+        # 動的スマートヒストグラム（1,000円刻み、回答が存在する価格帯のみをスッキリ表示）
         histogram = []
+        min_price = min(valid_prices)
         max_price = max(valid_prices)
-        upper_limit = min(10000, int(((max_price // 1000) + 1) * 1000))
-        # 少なくとも5,000円までは表示枠を確保
-        upper_limit = max(5000, upper_limit)
 
-        for b in range(0, min(10000, upper_limit), 1000):
-            next_b = b + 1000
-            c = sum(1 for p in valid_prices if b <= p < next_b)
-            histogram.append({
-                "label": f"{b:,}〜{next_b:,}円",
-                "range_min": float(b),
-                "range_max": float(next_b),
-                "count": c,
-                "percentage": round(c / valid_answers_count * 100, 1) if valid_answers_count else 0
-            })
+        # 価格帯に応じた刻み幅（中央値が3万円以下なら1000円刻み、それ以上は適切にスケール）
+        bin_size = 1000
+        if median_val > 50000:
+            bin_size = 5000
+        elif median_val > 20000:
+            bin_size = 2000
 
-        over_10k = sum(1 for p in valid_prices if p >= 10000)
-        if over_10k > 0:
-            histogram.append({
-                "label": "10,000円以上",
-                "range_min": 10000.0,
-                "range_max": float(max_price),
-                "count": over_10k,
-                "percentage": round(over_10k / valid_answers_count * 100, 1) if valid_answers_count else 0
-            })
+        bin_start = int((min_price // bin_size) * bin_size)
+        bin_end = int(((max_price // bin_size) + 1) * bin_size)
+
+        for b in range(bin_start, bin_end, bin_size):
+            next_b = b + bin_size
+            c = sum(1 for p in valid_prices if (b <= p <= next_b if next_b >= max_price else b <= p < next_b))
+            # 1名以上いる価格帯、または主要分布帯のみを追加
+            if c > 0:
+                histogram.append({
+                    "label": f"{b:,}〜{next_b:,}円",
+                    "range_min": float(b),
+                    "range_max": float(next_b),
+                    "count": c,
+                    "percentage": round(c / valid_answers_count * 100, 1) if valid_answers_count else 0
+                })
 
         # 価格帯カテゴリ分け
         categories = {
