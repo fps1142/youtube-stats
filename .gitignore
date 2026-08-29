@@ -1,0 +1,7 @@
+﻿__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+.vercel/
+debug_response.json
