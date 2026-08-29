@@ -351,11 +351,11 @@
         <div id="chartBars" class="chart-container"></div>
       </div>
 
-      <!-- 正解判定 ＆ ピタリ賞 -->
+      <!-- 正解判定 ＆ 正解者判定 -->
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
           <div>
-            <div class="card-title">正解発表 ＆ ピタリ賞判定</div>
+            <div class="card-title">正解発表 ＆ 正解者判定</div>
             <div class="card-desc">実際の正解金額を入力して判定します</div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -369,11 +369,11 @@
         <div class="quiz-box">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
             <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div style="font-size: 11px; color: #64748b;">ピタリ賞（完全一致）</div>
+              <div style="font-size: 11px; color: #64748b;">正解者（ピンポイント/範囲内）</div>
               <div style="font-size: 16px; font-weight: 700; color: #dc2626; margin-top: 1px;"><span id="exactCount">0</span> 名</div>
             </div>
             <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div style="font-size: 11px; color: #64748b;">ニアピン賞（惜しかった人）</div>
+              <div style="font-size: 11px; color: #64748b;">ニアピン（惜しかった予想）</div>
               <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 1px;"><span id="nearCount">0</span> 名</div>
             </div>
             <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
@@ -391,7 +391,7 @@
           </div>
 
           <div style="margin-top: 10px;">
-            <div style="font-size: 11px; font-weight: 600; color: #475569;">ピタリ賞 受賞者</div>
+            <div style="font-size: 11px; font-weight: 600; color: #475569;">正解者一覧</div>
             <div id="exactList" class="exact-grid"></div>
           </div>
         </div>
@@ -693,7 +693,11 @@
         let priceText = '-';
         let priceStyle = 'color: #94a3b8;';
         if (c.has_price) {
-          priceText = (c.price || 0).toLocaleString() + '円';
+          if (c.is_range && c.range_low && c.range_high) {
+            priceText = c.range_low.toLocaleString() + '〜' + c.range_high.toLocaleString() + '円';
+          } else {
+            priceText = (c.price || 0).toLocaleString() + '円';
+          }
           priceStyle = c.included ? 'color: #0f172a; font-weight: 700;' : 'color: #94a3b8; text-decoration: line-through;';
         }
 
@@ -781,7 +785,7 @@
         '総予想回答数: ' + valid.length + '件',
         '視聴者の予想平均: ' + meanVal.toLocaleString() + '円 (中央値: ' + (calculatedStats.median_price || 0).toLocaleString() + '円)',
         '最頻予想帯: ' + (calculatedStats.mode_price || 0).toLocaleString() + '円前後 (' + (calculatedStats.mode_count || 0) + '名)',
-        'ピタリ賞: ' + exact.length + '名'
+        '正解者: ' + exact.length + '名'
       ].join('\n');
 
       const scriptArea = document.getElementById('scriptArea');
@@ -791,15 +795,25 @@
       if (exactList) {
         exactList.innerHTML = '';
         if (exact.length === 0) {
-          exactList.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 4px 0;">ピタリ賞はいませんでした</div>';
+          exactList.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 4px 0;">正解者はいませんでした</div>';
         } else {
           exact.forEach(item => {
+            let priceDisplay = '';
+            let badgeText = '';
+            if (item.is_range && item.range_low && item.range_high) {
+              priceDisplay = item.range_low.toLocaleString() + '〜' + item.range_high.toLocaleString() + '円';
+              badgeText = '<span style="font-size: 10px; font-weight: normal; color: #64748b; margin-left: 4px;">(範囲内)</span>';
+            } else {
+              priceDisplay = (item.price || 0).toLocaleString() + '円';
+              badgeText = '<span style="font-size: 10px; font-weight: normal; color: #dc2626; margin-left: 4px;">(正解)</span>';
+            }
+
             const div = document.createElement('div');
             div.className = 'exact-item';
             div.innerHTML = `
-              <div style="display: flex; justify-content: space-between;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; color: #0f172a;">${escapeHtml(item.author || '匿名')}</span>
-                <span style="font-weight: 700; color: #dc2626;">${(item.price || 0).toLocaleString()}円</span>
+                <span style="font-weight: 700; color: #dc2626;">${priceDisplay}${badgeText}</span>
               </div>
               <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${escapeHtml(item.text || '')}</div>
             `;
