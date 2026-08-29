@@ -337,64 +337,11 @@
         </div>
       </div>
 
-      <!-- 金額分布ヒストグラム ＆ 16:9透過PNG書き出し -->
+      <!-- 金額分布ヒストグラム -->
       <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">金額分布ヒストグラム</div>
-            <div class="card-desc">チェックを入れた予想の価格帯分布</div>
-          </div>
-          <button type="button" onclick="exportTransparentGraph(this)" class="btn-sub">
-            透過PNG画像（1920x1080）を出力
-          </button>
-        </div>
+        <div class="card-title">金額分布ヒストグラム</div>
+        <div class="card-desc">チェックを入れた予想の価格帯分布</div>
         <div id="chartBars" class="chart-container"></div>
-      </div>
-
-      <!-- 正解判定 ＆ 正解者判定 -->
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
-          <div>
-            <div class="card-title">正解発表 ＆ 正解者判定</div>
-            <div class="card-desc">実際の正解金額を入力して判定します</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 12px; font-weight: 600; color: #475569;">正解金額:</span>
-            <input type="number" id="correctPriceInput" placeholder="例: 3800" class="input-number" />
-            <span style="font-size: 12px;">円</span>
-            <button type="button" onclick="applyQuiz()" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">判定</button>
-          </div>
-        </div>
-
-        <div class="quiz-box">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
-            <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div style="font-size: 11px; color: #64748b;">正解者（ピンポイント/範囲内）</div>
-              <div style="font-size: 16px; font-weight: 700; color: #dc2626; margin-top: 1px;"><span id="exactCount">0</span> 名</div>
-            </div>
-            <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div style="font-size: 11px; color: #64748b;">ニアピン（惜しかった予想）</div>
-              <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 1px;"><span id="nearCount">0</span> 名</div>
-            </div>
-            <div style="background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div style="font-size: 11px; color: #64748b;">平均値との差額</div>
-              <div style="font-size: 16px; font-weight: 700; color: #2563eb; margin-top: 1px;" id="gapText">0 円</div>
-            </div>
-          </div>
-
-          <div style="margin-top: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="font-size: 11px; font-weight: 600; color: #475569;">動画用トーク台本メモ</div>
-              <button type="button" onclick="copyScript()" id="copyScriptBtn" style="font-size: 11px; color: #2563eb; background: none; border: none; cursor: pointer; font-weight: 600;">台本をコピー</button>
-            </div>
-            <textarea id="scriptArea" readonly rows="5" class="script-textarea"></textarea>
-          </div>
-
-          <div style="margin-top: 10px;">
-            <div style="font-size: 11px; font-weight: 600; color: #475569;">正解者一覧</div>
-            <div id="exactList" class="exact-grid"></div>
-          </div>
-        </div>
       </div>
 
       <!-- コメント一覧 -->
@@ -433,6 +380,14 @@
             <tbody id="commentTbody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- 画像出力（ページ最下部） -->
+      <div style="margin-top: 24px; text-align: center;">
+        <button type="button" onclick="exportTransparentGraph(this)" class="btn-primary" style="padding: 12px 28px; font-size: 14px;">
+          透過PNG画像（1920x1080）を出力
+        </button>
+        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">動画編集ソフトにそのまま重ねられる高解像度テロップ画像を書き出します</div>
       </div>
 
     </div>

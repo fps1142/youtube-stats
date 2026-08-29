@@ -83,14 +83,17 @@ def _parse_single_segment(clean_text: str, is_tax_excluded: bool) -> Optional[Di
             }
 
     # 5. 通常の「数字 + 円/えん/yen/¥」 (例: 3500円, ¥4,000, 3980えん)
-    yen_match = re.search(r'(?:[¥￥]\s*(\d+)|(\d+)\s*(?:円|えん|yen))', clean_text, re.IGNORECASE)
-    if yen_match:
-        val = int(yen_match.group(1) or yen_match.group(2))
+    # ※「2000円台のやつ正気か？ 3800円」のように「〇〇円台」は他人の言及なので、単独の「〇〇円」を優先探索
+    yen_matches = list(re.finditer(r'(?:[¥￥]\s*(\d+)|(\d+)\s*(?:円|えん|yen))(?!\s*台)', clean_text, re.IGNORECASE))
+    if yen_matches:
+        # 文末に近いマッチ、または最後のマッチを優先
+        chosen = yen_matches[-1]
+        val = int(chosen.group(1) or chosen.group(2))
         if 50 <= val <= 50000000:
-            reason = clean_text.replace(yen_match.group(0), '').strip(' :：,、。!?！？\n\t')
+            reason = clean_text.replace(chosen.group(0), '').strip(' :：,、。!?！？\n\t')
             return {
                 'price': val,
-                'raw_price_str': yen_match.group(0),
+                'raw_price_str': chosen.group(0),
                 'is_range': False,
                 'is_tax_excluded': is_tax_excluded,
                 'confidence': 0.98,
@@ -98,19 +101,20 @@ def _parse_single_segment(clean_text: str, is_tax_excluded: bool) -> Optional[Di
             }
 
     # 6. 単独の3〜6桁の数値 (例: 「3800くらい」「4000かな」「2500」)
-    num_match = re.search(r'(?<!\d)(\d{3,6})(?!\d)', clean_text)
-    if num_match:
-        val = int(num_match.group(1))
-        if val not in [2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]:
-            reason = clean_text.replace(num_match.group(0), '').strip(' :：,、。!?！？\n\t')
-            return {
-                'price': val,
-                'raw_price_str': num_match.group(0),
-                'is_range': False,
-                'is_tax_excluded': is_tax_excluded,
-                'confidence': 0.80,
-                'reason': reason if len(reason) > 2 else ''
-            }
+    num_matches = list(re.finditer(r'(?<!\d)(\d{3,6})(?!\d)(?!\s*台)', clean_text))
+    if num_matches:
+        for nm in reversed(num_matches):
+            val = int(nm.group(1))
+            if val not in [2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]:
+                reason = clean_text.replace(nm.group(0), '').strip(' :：,、。!?！？\n\t')
+                return {
+                    'price': val,
+                    'raw_price_str': nm.group(0),
+                    'is_range': False,
+                    'is_tax_excluded': is_tax_excluded,
+                    'confidence': 0.80,
+                    'reason': reason if len(reason) > 2 else ''
+                }
 
     return None
 
