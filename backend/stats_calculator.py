@@ -52,27 +52,32 @@ def calculate_statistics(raw_comments: List[Dict[str, Any]], correct_price: Opti
         mode_val = float(most_common[0][0]) if most_common else median_val
         mode_count = most_common[0][1] if most_common else 0
 
-        # ヒストグラムの自動ビン分割（500円または1000円刻み）
-        span = max_val - min_val
-        bin_size = 500 if span <= 5000 else 1000
-        if span > 15000:
-            bin_size = 2000
-
-        bin_start = int((min_val // bin_size) * bin_size)
-        bin_end = int(((max_val // bin_size) + 1) * bin_size)
-        
-        bins = list(range(bin_start, bin_end + bin_size, bin_size))
-        counts, edges = np.histogram(valid_prices, bins=bins)
-        
+        # 1万円までは1000円刻み固定、1万円以上は1つの枠に集約
         histogram = []
-        for i in range(len(counts)):
-            label = f"{edges[i]:,.0f}〜{edges[i+1]:,.0f}円"
+        max_price = max(valid_prices)
+        upper_limit = min(10000, int(((max_price // 1000) + 1) * 1000))
+        # 少なくとも5,000円までは表示枠を確保
+        upper_limit = max(5000, upper_limit)
+
+        for b in range(0, min(10000, upper_limit), 1000):
+            next_b = b + 1000
+            c = sum(1 for p in valid_prices if b <= p < next_b)
             histogram.append({
-                "label": label,
-                "range_min": float(edges[i]),
-                "range_max": float(edges[i+1]),
-                "count": int(counts[i]),
-                "percentage": round(float(counts[i]) / valid_answers_count * 100, 1)
+                "label": f"{b:,}〜{next_b:,}円",
+                "range_min": float(b),
+                "range_max": float(next_b),
+                "count": c,
+                "percentage": round(c / valid_answers_count * 100, 1) if valid_answers_count else 0
+            })
+
+        over_10k = sum(1 for p in valid_prices if p >= 10000)
+        if over_10k > 0:
+            histogram.append({
+                "label": "10,000円以上",
+                "range_min": 10000.0,
+                "range_max": float(max_price),
+                "count": over_10k,
+                "percentage": round(over_10k / valid_answers_count * 100, 1) if valid_answers_count else 0
             })
 
         # 価格帯カテゴリ分け

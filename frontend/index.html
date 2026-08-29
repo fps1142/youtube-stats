@@ -553,7 +553,7 @@
       }
     }
 
-    const CACHE_KEY = 'yt_price_stats_cache_v3';
+    const CACHE_KEY = 'yt_price_stats_cache_v4';
     const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24時間保持
 
     function saveSession(url) {
@@ -746,27 +746,32 @@
           }
         }
 
-        // ヒストグラム自動分割
-        const span = maxVal - minVal;
-        let binSize = 500;
-        if (span > 15000) binSize = 2000;
-        else if (span > 5000) binSize = 1000;
+        // 1万円までは1000円刻み固定、1万円以上は1つの枠に集約
+        const maxPrice = maxVal;
+        let upperLimit = Math.min(10000, Math.floor(maxPrice / 1000 + 1) * 1000);
+        upperLimit = Math.max(5000, upperLimit);
 
-        const binStart = Math.floor(minVal / binSize) * binSize;
-        const binEnd = Math.floor((maxVal / binSize) + 1) * binSize;
+        for (let b = 0; b < Math.min(10000, upperLimit); b += 1000) {
+          const nextB = b + 1000;
+          const countInBin = prices.filter(p => p >= b && p < nextB).length;
+          histogram.push({
+            label: b.toLocaleString() + '〜' + nextB.toLocaleString() + '円',
+            range_min: b,
+            range_max: nextB,
+            count: countInBin,
+            percentage: Math.round((countInBin / prices.length) * 1000) / 10
+          });
+        }
 
-        for (let b = binStart; b < binEnd; b += binSize) {
-          const nextB = b + binSize;
-          const countInBin = prices.filter(p => p >= b && (b === binEnd - binSize ? p <= nextB : p < nextB)).length;
-          if (countInBin > 0 || (b >= minVal && b <= maxVal)) {
-            histogram.push({
-              label: b.toLocaleString() + '〜' + nextB.toLocaleString() + '円',
-              range_min: b,
-              range_max: nextB,
-              count: countInBin,
-              percentage: Math.round((countInBin / prices.length) * 1000) / 10
-            });
-          }
+        const over10k = prices.filter(p => p >= 10000).length;
+        if (over10k > 0) {
+          histogram.push({
+            label: '10,000円以上',
+            range_min: 10000,
+            range_max: maxPrice,
+            count: over10k,
+            percentage: Math.round((over10k / prices.length) * 1000) / 10
+          });
         }
       }
 
