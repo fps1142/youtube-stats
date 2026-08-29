@@ -313,29 +313,159 @@
     /* コメントテーブル */
     .table-container {
       overflow-x: auto;
-      max-height: 380px;
+      max-height: 420px;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
       margin-top: 10px;
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
-    th { background: #f8fafc; color: #475569; padding: 7px 10px; font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid #e2e8f0; z-index: 10; }
-    td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    th { background: #f8fafc; color: #475569; padding: 8px 10px; font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid #e2e8f0; z-index: 10; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; }
     tr:hover { background: #f8fafc; }
     tr.row-excluded { opacity: 0.45; background: #fafafa; }
-    .chk-include { cursor: pointer; transform: scale(1.1); }
-  </style>
-</head>
-<body>
+    .chk-include { cursor: pointer; transform: scale(1.15); }
+    .mobile-likes { display: none; }
 
-  <header>
-    <div class="container header-inner">
-      <div class="brand">
-        <span class="brand-title">YouTube 相場予想集計</span>
-      </div>
-      <div style="font-size: 12px; color: #64748b;">動画制作向け統計ツール</div>
-    </div>
-  </header>
+    /* スマホ・タブレット向けレスポンシブ最適化 (max-width: 640px) */
+    @media (max-width: 640px) {
+      body { padding: 8px 4px 30px; }
+      .container { padding: 0 6px; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 2px; }
+      .card { padding: 14px 12px; margin-top: 10px; border-radius: 8px; }
+      .input-row { flex-direction: column; gap: 8px; }
+      .input-text { width: 100%; font-size: 12px; }
+      .btn-primary { width: 100%; padding: 10px; font-size: 13px; text-align: center; }
+
+      /* KPI */
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      .kpi-card { padding: 10px 8px; }
+      .kpi-value { font-size: 17px; }
+      .kpi-sub { font-size: 10px; }
+
+      /* ヒストグラム */
+      .bar-row { gap: 6px; margin-bottom: 6px; }
+      .bar-label { width: 98px; font-size: 10.5px; letter-spacing: -0.3px; }
+      .bar-track { height: 16px; }
+      .bar-value { width: 68px; font-size: 10.5px; }
+
+      /* 画像プレビュー */
+      .gallery-wrapper { max-height: 280px; }
+      .gallery-img { max-height: 280px; }
+      .gallery-thumbs { gap: 6px; padding: 6px 0; }
+      .thumb-item { width: 46px; height: 46px; }
+
+      /* コメント一覧（カード型レイアウトに完全変換） */
+      .table-container {
+        max-height: 520px;
+        border: none;
+        background: transparent;
+        overflow-x: hidden;
+      }
+      table, thead, tbody, tr, td, th {
+        display: block;
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+      thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        margin-bottom: 8px;
+      }
+      thead tr {
+        display: flex;
+        align-items: center;
+        padding: 7px 10px;
+        border: none;
+      }
+      th.col-author, th.col-price, th.col-text, th.col-likes {
+        display: none !important;
+      }
+      th.col-chk {
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+      }
+      th.col-chk::after {
+        content: "全選択 / 全解除";
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      /* 各コメント行 */
+      tbody tr {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        position: relative;
+      }
+      tbody tr.row-excluded {
+        background: #f8fafc;
+        opacity: 0.55;
+        border-color: #cbd5e1;
+      }
+
+      td.col-chk {
+        position: absolute;
+        top: 11px;
+        left: 10px;
+        width: auto !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+      td.col-author {
+        padding: 0 85px 0 28px !important;
+        border: none !important;
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      td.col-price {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        width: auto !important;
+        padding: 0 !important;
+        border: none !important;
+        font-size: 13px;
+        text-align: right;
+      }
+      td.col-text {
+        padding: 6px 0 0 28px !important;
+        border: none !important;
+        font-size: 12px;
+        color: #334155;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+      td.col-likes {
+        display: none !important;
+      }
+      .mobile-likes {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 5px;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    }
 
   <main class="container">
 
@@ -455,13 +585,13 @@
           <table>
             <thead>
               <tr>
-                <th style="width: 50px; text-align: center;">
+                <th class="col-chk" style="width: 50px; text-align: center;">
                   <input type="checkbox" id="masterCheckbox" title="全選択/全解除" onchange="toggleAllCheckboxes(this.checked)" class="chk-include" checked />
                 </th>
-                <th style="width: 140px;">投稿者</th>
-                <th style="width: 110px; text-align: right;">抽出金額</th>
-                <th>コメント本文</th>
-                <th style="width: 70px; text-align: right;">いいね数</th>
+                <th class="col-author" style="width: 140px;">投稿者</th>
+                <th class="col-price" style="width: 110px; text-align: right;">抽出金額</th>
+                <th class="col-text">コメント本文</th>
+                <th class="col-likes" style="width: 70px; text-align: right;">いいね数</th>
               </tr>
             </thead>
             <tbody id="commentTbody"></tbody>
@@ -553,7 +683,7 @@
       }
     }
 
-    const CACHE_KEY = 'yt_price_stats_cache_v7';
+    const CACHE_KEY = 'yt_price_stats_cache_v8';
     const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24時間保持
 
     function saveSession(url) {
@@ -882,13 +1012,16 @@
         const chkChecked = (c.has_price && c.included) ? 'checked' : '';
 
         tr.innerHTML = `
-          <td style="text-align: center;">
+          <td class="col-chk" style="text-align: center;">
             <input type="checkbox" class="chk-include" ${chkDisabled} ${chkChecked} onchange="toggleCommentInclusion('${c.uid}', this.checked)" />
           </td>
-          <td style="font-weight: 600; color: #0f172a;">${escapeHtml(c.author || '匿名')}</td>
-          <td style="text-align: right; ${priceStyle}">${priceText}</td>
-          <td>${escapeHtml(c.text || '')}</td>
-          <td style="text-align: right; color: #64748b;">${c.like_count || 0}</td>
+          <td class="col-author" style="font-weight: 600; color: #0f172a;">${escapeHtml(c.author || '匿名')}</td>
+          <td class="col-price" style="text-align: right; ${priceStyle}">${priceText}</td>
+          <td class="col-text">
+            <div>${escapeHtml(c.text || '')}</div>
+            <div class="mobile-likes">👍 ${c.like_count || 0}</div>
+          </td>
+          <td class="col-likes" style="text-align: right; color: #64748b;">${c.like_count || 0}</td>
         `;
         tbody.appendChild(tr);
       });
