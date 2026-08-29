@@ -78,6 +78,7 @@ class YouTubeCommentFetcher:
             "author_avatar": "",
             "post_text": "",
             "image_url": "",
+            "images": [],
             "published_time": "",
             "total_comments_approx": 0
         }
@@ -101,20 +102,22 @@ class YouTubeCommentFetcher:
                     attachment = post_renderer.get("backstageAttachment", {})
                     if "postMultiImageRenderer" in attachment:
                         imgs = attachment["postMultiImageRenderer"].get("images", [])
-                        if imgs:
-                            t_list = imgs[0].get("backstageImageRenderer", {}).get("image", {}).get("thumbnails", [])
-                            if t_list: meta["image_url"] = self._fix_url_scheme(t_list[-1].get("url", ""))
+                        for img_item in imgs:
+                            t_list = img_item.get("backstageImageRenderer", {}).get("image", {}).get("thumbnails", [])
+                            if t_list:
+                                meta["images"].append(self._fix_url_scheme(t_list[-1].get("url", "")))
                     elif "backstageImageRenderer" in attachment:
                         t_list = attachment["backstageImageRenderer"].get("image", {}).get("thumbnails", [])
-                        if t_list: meta["image_url"] = self._fix_url_scheme(t_list[-1].get("url", ""))
+                        if t_list:
+                            meta["images"].append(self._fix_url_scheme(t_list[-1].get("url", "")))
 
                     meta["published_time"] = post_renderer.get("publishedTimeText", {}).get("runs", [{}])[0].get("text", "")
 
                 # マイクロフォーマットからのフォールバック画像取得
-                if not meta["image_url"]:
+                if not meta["images"]:
                     mf_thumbs = data.get("microformat", {}).get("microformatDataRenderer", {}).get("thumbnail", {}).get("thumbnails", [])
                     if mf_thumbs:
-                        meta["image_url"] = self._fix_url_scheme(mf_thumbs[-1].get("url", ""))
+                        meta["images"].append(self._fix_url_scheme(mf_thumbs[-1].get("url", "")))
 
             # 通常動画の場合
             else:
@@ -124,14 +127,17 @@ class YouTubeCommentFetcher:
                     meta["author"] = video_details.get("author", meta["author"])
                     thumbs = video_details.get("thumbnail", {}).get("thumbnails", [])
                     if thumbs:
-                        meta["image_url"] = self._fix_url_scheme(thumbs[-1].get("url", ""))
+                        meta["images"].append(self._fix_url_scheme(thumbs[-1].get("url", "")))
                 else:
                     mf = data.get("microformat", {}).get("playerMicroformatRenderer", {})
                     meta["title"] = mf.get("title", {}).get("simpleText", "動画")
                     meta["author"] = mf.get("ownerChannelName", meta["author"])
                     thumbs = mf.get("thumbnail", {}).get("thumbnails", [])
                     if thumbs:
-                        meta["image_url"] = self._fix_url_scheme(thumbs[-1].get("url", ""))
+                        meta["images"].append(self._fix_url_scheme(thumbs[-1].get("url", "")))
+
+            if meta["images"]:
+                meta["image_url"] = meta["images"][0]
 
         except Exception as e:
             print("Metadata extract warning:", e)

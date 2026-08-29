@@ -134,26 +134,104 @@
     }
 
     /* 投稿ヘッダー */
-    .post-header { display: flex; gap: 14px; align-items: flex-start; }
-    .post-img {
-      width: 80px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      flex-shrink: 0;
-      display: none;
-    }
-    .post-author { font-size: 13px; font-weight: 600; color: #0f172a; }
+    .post-author { font-size: 14px; font-weight: 700; color: #0f172a; }
     .post-time { font-size: 11px; color: #64748b; margin-left: 6px; }
-    .post-title { font-size: 13px; font-weight: 600; color: #334155; margin-top: 2px; }
-    .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .post-title { font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 4px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
     .badge {
       background: #f1f5f9;
       color: #475569;
       padding: 3px 8px;
       border-radius: 4px;
       font-size: 11px;
+    }
+
+    /* 画像ギャラリー・スライダー */
+    .image-gallery {
+      margin-top: 14px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0f172a;
+      border: 1px solid #e2e8f0;
+    }
+    .gallery-wrapper {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #090d16;
+    }
+    .gallery-img {
+      max-width: 100%;
+      max-height: 380px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      user-select: none;
+    }
+    .gallery-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(15, 23, 42, 0.75);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.15s;
+      z-index: 5;
+    }
+    .gallery-nav-btn:hover { background: rgba(15, 23, 42, 0.95); transform: translateY(-50%) scale(1.05); }
+    .prev-btn { left: 12px; }
+    .next-btn { right: 12px; }
+    .gallery-counter {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      color: #ffffff;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      z-index: 5;
+    }
+    .gallery-thumbs {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #0f172a;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-x: auto;
+      justify-content: center;
+    }
+    .thumb-item {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0.45;
+      border: 2px solid transparent;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+    .thumb-item:hover { opacity: 0.8; }
+    .thumb-item.active {
+      opacity: 1;
+      border-color: #38bdf8;
     }
 
     /* KPI */
@@ -296,20 +374,29 @@
     <!-- 結果エリア -->
     <div id="dashboardArea" style="display: none;">
 
-      <!-- 投稿情報 -->
-      <div class="card post-header">
-        <img id="postImg" class="post-img" src="" alt="サムネイル" />
-        <div style="flex: 1;">
-          <div>
-            <span id="postAuthor" class="post-author"></span>
-            <span id="postTime" class="post-time"></span>
+      <!-- 投稿情報 ＆ 大画面画像スライダー -->
+      <div class="card">
+        <div>
+          <span id="postAuthor" class="post-author"></span>
+          <span id="postTime" class="post-time"></span>
+        </div>
+        <div id="postTitle" class="post-title"></div>
+
+        <!-- 大画面画像ギャラリー -->
+        <div id="imageGallery" class="image-gallery" style="display: none;">
+          <div class="gallery-wrapper">
+            <img id="galleryImg" class="gallery-img" src="" alt="投稿画像" />
+            <button type="button" id="prevImgBtn" onclick="prevImage()" class="gallery-nav-btn prev-btn" style="display: none;">‹</button>
+            <button type="button" id="nextImgBtn" onclick="nextImage()" class="gallery-nav-btn next-btn" style="display: none;">›</button>
+            <div id="galleryCounter" class="gallery-counter" style="display: none;">1 / 1</div>
           </div>
-          <div id="postTitle" class="post-title"></div>
-          <div class="badges">
-            <div class="badge">総コメント数: <strong id="statTotal">0</strong>件</div>
-            <div class="badge">集計対象: <strong id="statIncluded" style="color: #0f172a;">0</strong>件</div>
-            <div class="badge">除外・対象外: <strong id="statExcluded" style="color: #64748b;">0</strong>件</div>
-          </div>
+          <div id="galleryThumbs" class="gallery-thumbs" style="display: none;"></div>
+        </div>
+
+        <div class="badges">
+          <div class="badge">総コメント数: <strong id="statTotal">0</strong>件</div>
+          <div class="badge">集計対象: <strong id="statIncluded" style="color: #0f172a;">0</strong>件</div>
+          <div class="badge">除外・対象外: <strong id="statExcluded" style="color: #64748b;">0</strong>件</div>
         </div>
       </div>
 
@@ -528,20 +615,77 @@
 
     window.addEventListener('DOMContentLoaded', restoreSession);
 
+    let postImages = [];
+    let currentImageIndex = 0;
+
     function renderHeader() {
       setText('postAuthor', currentMetadata.author || 'YouTube チャンネル');
       setText('postTime', currentMetadata.published_time || '');
       setText('postTitle', currentMetadata.title || currentMetadata.post_text || '投稿');
 
-      const img = document.getElementById('postImg');
-      if (img) {
-        if (currentMetadata.image_url) {
-          img.src = currentMetadata.image_url;
-          img.style.display = 'block';
-        } else {
-          img.style.display = 'none';
-        }
+      postImages = currentMetadata.images && currentMetadata.images.length > 0
+        ? currentMetadata.images
+        : (currentMetadata.image_url ? [currentMetadata.image_url] : []);
+      currentImageIndex = 0;
+
+      const gallery = document.getElementById('imageGallery');
+      if (postImages.length > 0) {
+        if (gallery) gallery.style.display = 'block';
+        showGalleryImage(0);
+      } else {
+        if (gallery) gallery.style.display = 'none';
       }
+    }
+
+    function showGalleryImage(index) {
+      if (index < 0 || index >= postImages.length) return;
+      currentImageIndex = index;
+
+      const img = document.getElementById('galleryImg');
+      if (img) img.src = postImages[index];
+
+      const prevBtn = document.getElementById('prevImgBtn');
+      const nextBtn = document.getElementById('nextImgBtn');
+      const counter = document.getElementById('galleryCounter');
+      const thumbsContainer = document.getElementById('galleryThumbs');
+
+      if (postImages.length > 1) {
+        if (prevBtn) prevBtn.style.display = 'flex';
+        if (nextBtn) nextBtn.style.display = 'flex';
+        if (counter) {
+          counter.textContent = (currentImageIndex + 1) + ' / ' + postImages.length;
+          counter.style.display = 'block';
+        }
+        if (thumbsContainer) {
+          thumbsContainer.innerHTML = '';
+          thumbsContainer.style.display = 'flex';
+          postImages.forEach((imgUrl, i) => {
+            const thumb = document.createElement('img');
+            thumb.className = 'thumb-item' + (i === currentImageIndex ? ' active' : '');
+            thumb.src = imgUrl;
+            thumb.alt = 'サムネイル ' + (i + 1);
+            thumb.onclick = () => showGalleryImage(i);
+            thumbsContainer.appendChild(thumb);
+          });
+        }
+      } else {
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (counter) counter.style.display = 'none';
+        if (thumbsContainer) thumbsContainer.style.display = 'none';
+      }
+    }
+
+    function prevImage() {
+      if (postImages.length <= 1) return;
+      const newIdx = (currentImageIndex - 1 + postImages.length) % postImages.length;
+      showGalleryImage(newIdx);
+    }
+
+    function nextImage() {
+      if (postImages.length <= 1) return;
+      const newIdx = (currentImageIndex + 1) % postImages.length;
+      showGalleryImage(newIdx);
     }
 
     // クライアント側でミリ秒で全統計をリアルタイム再計算
